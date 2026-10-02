@@ -111,9 +111,12 @@ def extract_group(group_name: str, fields: list[str], bid_folder: str) -> list[d
     found: list[dict] = []
     if sections:
         workers = max(1, min(get_settings().extract_section_concurrency, len(sections)))
-        parent = copy_context()
         with ThreadPoolExecutor(max_workers=workers) as pool:
-            futures = [pool.submit(parent.run, extract_section, fields, section_hits) for section_hits in sections]
+            # One context per task. A single Context cannot be entered by two threads.
+            futures = [
+                pool.submit(copy_context().run, extract_section, fields, section_hits)
+                for section_hits in sections
+            ]
             for future in as_completed(futures):
                 found.extend(future.result())
     trace_step(

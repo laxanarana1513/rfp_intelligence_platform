@@ -114,9 +114,9 @@ def _keyword_ids(
         SELECT id::text AS id
         FROM chunks
         WHERE tsv @@ plainto_tsquery('english', %(query)s)
-          AND (%(bid_id)s IS NULL OR bid_folder = %(bid_id)s)
-          AND (%(doc_type)s IS NULL OR doc_type = %(doc_type)s)
-          AND (%(addendum_number)s IS NULL OR addendum_number = %(addendum_number)s)
+          AND (%(bid_id)s::text IS NULL OR bid_folder = %(bid_id)s::text)
+          AND (%(doc_type)s::text IS NULL OR doc_type = %(doc_type)s::text)
+          AND (%(addendum_number)s::integer IS NULL OR addendum_number = %(addendum_number)s::integer)
         ORDER BY ts_rank(tsv, plainto_tsquery('english', %(query)s)) DESC
         LIMIT %(limit)s
         """,
