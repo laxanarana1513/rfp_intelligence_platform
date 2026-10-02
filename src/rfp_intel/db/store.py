@@ -168,6 +168,20 @@ def sections_for_document(conn: Conn, document_id: uuid.UUID) -> list[Section]:
     return [Section.model_validate(row) for row in rows]
 
 
+def tables_for_document(conn: Conn, document_id: uuid.UUID) -> list[Table]:
+    rows = conn.execute(
+        """
+        SELECT t.id, t.section_id, t.page_number, t.markdown, t.rows_json, t.caption
+        FROM tables t
+        JOIN sections s ON s.id = t.section_id
+        WHERE s.document_id = %(document_id)s
+        ORDER BY s.ordinal, t.page_number
+        """,
+        {"document_id": document_id},
+    ).fetchall()
+    return [Table.model_validate(row) for row in rows]
+
+
 def insert_table(conn: Conn, table: Table) -> None:
     payload = table.model_dump()
     payload["rows_json"] = jsonb(table.rows_json)

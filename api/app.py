@@ -154,9 +154,9 @@ def create_app() -> FastAPI:
             raise HTTPException(503, f"pipeline status is unavailable: {exc}") from exc
 
     @app.get("/pipeline/rows")
-    def rows(bid_id: str = Query(...), step: str = Query(...), file: str | None = None):
+    def rows(bid_id: str = Query(...), step: str = Query(...), file: str | None = None, row_id: str | None = None):
         try:
-            return pipeline_rows(bid_id, step, file=file)
+            return pipeline_rows(bid_id, step, file=file, row_id=row_id)
         except ServiceError as exc:
             raise HTTPException(exc.status_code, str(exc)) from exc
 

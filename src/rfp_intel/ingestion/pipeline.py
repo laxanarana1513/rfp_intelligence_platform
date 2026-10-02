@@ -32,13 +32,15 @@ from rfp_intel.db.store import (
     save_source_file,
     sections_for_document,
     source_files_for_bid,
+    tables_for_document,
 )
 from rfp_intel.ingestion.classify import classify_document
 from rfp_intel.ingestion.diff import diff_hashes
 from rfp_intel.ingestion.discover import hash_folder
 from rfp_intel.ingestion.parser import parse_file
+from rfp_intel.ingestion.sections import SectionDraft, TableDraft
 from rfp_intel.logging_setup import get_logger
-from rfp_intel.search.chunking import ChunkDraft, chunks_from_docling
+from rfp_intel.search.chunking import ChunkDraft, chunk_sections
 from rfp_intel.search.embeddings import embed_documents
 from rfp_intel.search.qdrant_store import delete_by_bid, delete_by_document, upsert_points
 
@@ -106,7 +108,7 @@ def chunk_bid_folder(folder: Path) -> None:
         save_bid(conn, bid)
         conn.commit()
         for source in files:
-            _replace_chunks(conn, bid, source, folder / source.relative_path)
+            _replace_chunks(conn, bid, source)
             conn.commit()
         bid = get_bid_by_folder(conn, bid_folder)
         if bid is not None:
@@ -222,13 +224,40 @@ def _ingest_file(conn, bid: Bid, path: Path, relative: str, digest: str) -> None
     save_source_file(conn, source)
 
 
-def _replace_chunks(conn, bid: Bid, source: SourceFile, path: Path) -> None:
-    parsed = parse_file(path)
-    drafts = _chunk_parsed(parsed, get_settings().chunk_max_tokens, get_settings().embedding_model)
+def _replace_chunks(conn, bid: Bid, source: SourceFile) -> None:
+    """Chunk the sections and tables already stored for this file."""
+    sections = _stored_sections(conn, source.id)
+    drafts = chunk_sections(sections, max_tokens=get_settings().chunk_max_tokens)
     delete_by_document(str(source.id))
     delete_chunks_for_file(conn, source.id)
     section_ids = _section_index(conn, source.id)
-    _store_chunks(conn, bid, source, drafts, section_ids, parsed.sections)
+    _store_chunks(conn, bid, source, drafts, section_ids, sections)
+
+
+def _stored_sections(conn, document_id) -> list[SectionDraft]:
+    stored = sections_for_document(conn, document_id)
+    grouped: dict = {}
+    for table in tables_for_document(conn, document_id):
+        grouped.setdefault(table.section_id, []).append(
+            TableDraft(
+                page_number=table.page_number,
+                markdown=table.markdown or "",
+                rows=list(table.rows_json or []),
+                caption=table.caption,
+            )
+        )
+    return [
+        SectionDraft(
+            heading_path=list(section.heading_path),
+            level=section.level,
+            ordinal=section.ordinal,
+            page_start=section.page_start,
+            page_end=section.page_end,
+            body_text=section.body_text or "",
+            tables=grouped.get(section.id, []),
+        )
+        for section in stored
+    ]
 
 
 def _section_index(conn, document_id) -> dict[tuple, uuid.UUID]:
@@ -238,19 +267,6 @@ def _section_index(conn, document_id) -> dict[tuple, uuid.UUID]:
         index[(heading, section.ordinal)] = section.id
         index[heading] = section.id
     return index
-
-
-def _chunk_parsed(parsed, max_tokens: int, embedding_model: str) -> list[ChunkDraft]:
-    if parsed.document is not None:
-        try:
-            drafts = chunks_from_docling(parsed.document, max_tokens=max_tokens, embedding_model=embedding_model)
-            if drafts:
-                return drafts
-        except Exception:
-            logger.exception("HybridChunker failed; using section chunker")
-    from rfp_intel.search.chunking import chunk_sections
-
-    return chunk_sections(parsed.sections, max_tokens=max_tokens)
 
 
 def _store_sections(conn, source: SourceFile, sections) -> dict[tuple, uuid.UUID]:

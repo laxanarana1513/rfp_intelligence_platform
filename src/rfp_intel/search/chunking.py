@@ -1,8 +1,8 @@
 """Section-bounded chunks.
 
-The indexing pipeline prefers Docling's HybridChunker. ``chunk_sections`` is the
-same contract (heading path, page, no cross-section splits, header repeated on
-table row splits) and is what the unit tests exercise.
+Chunking reads sections and tables already stored in Postgres and calls
+``chunk_sections``. ``chunks_from_docling`` remains for a Docling document when
+one is already in memory.
 """
 
 from __future__ import annotations

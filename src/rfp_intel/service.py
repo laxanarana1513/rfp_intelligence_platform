@@ -24,7 +24,7 @@ from rfp_intel.db.store import (
     latest_extract_run,
     save_agent_run,
 )
-from rfp_intel.ingestion.browse import pipeline_catalog, step_rows
+from rfp_intel.ingestion.browse import pipeline_catalog, step_row, step_rows
 from rfp_intel.ingestion.discover import list_bid_folders
 from rfp_intel.ingestion.jobs import list_bids
 from rfp_intel.ingestion.pipeline import chunk_bid_folder, embed_bid_folder, parse_bid_folder
@@ -67,9 +67,14 @@ def pipeline_status() -> dict:
     return {"retrieval_ready": points > 0, "qdrant_points": points, "qdrant_error": None, "bids": _safe_catalog()}
 
 
-def pipeline_rows(bid_id: str, step: str, file: str | None = None) -> dict:
+def pipeline_rows(bid_id: str, step: str, file: str | None = None, row_id: str | None = None) -> dict:
     _known_folder(bid_id)
     try:
+        if row_id:
+            row = step_row(bid_id, step, row_id)
+            if row is None:
+                raise ServiceError("row not found", 404)
+            return {"bid_id": bid_id, "step": step, "row": row}
         rows = step_rows(bid_id, step, file=file)
     except ValueError as exc:
         raise ServiceError(str(exc)) from exc

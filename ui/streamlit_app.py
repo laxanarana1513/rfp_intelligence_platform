@@ -6,6 +6,7 @@ import json
 import os
 
 import httpx
+import pandas as pd
 import streamlit as st
 from dotenv import load_dotenv
 load_dotenv()
@@ -37,6 +38,33 @@ st.set_page_config(page_title="RFP Intelligence", layout="wide")
 st.title("RFP Intelligence Platform")
 
 
+def _show_full_row(step: str, row: dict) -> None:
+    heading = row.get("heading") or row.get("file") or "Row"
+    st.subheader(heading)
+    meta = {
+        key: value
+        for key, value in row.items()
+        if key not in {"id", "body_text", "markdown", "text", "rows_json"} and value is not None
+    }
+    if meta:
+        st.dataframe([meta], use_container_width=True, hide_index=True)
+    if step == "sections":
+        st.text_area("Body", value=row.get("body_text") or "", height=640, disabled=True, key=f"body-{row.get('id')}")
+    elif step == "tables":
+        st.text_area("Markdown", value=row.get("markdown") or "", height=640, disabled=True, key=f"md-{row.get('id')}")
+        parsed_rows = row.get("rows_json") or []
+        if isinstance(parsed_rows, str):
+            try:
+                parsed_rows = json.loads(parsed_rows)
+            except json.JSONDecodeError:
+                parsed_rows = []
+        if parsed_rows:
+            st.markdown("**Rows**")
+            st.dataframe(parsed_rows, use_container_width=True, hide_index=True)
+    elif step == "chunks":
+        st.text_area("Text", value=row.get("text") or "", height=640, disabled=True, key=f"text-{row.get('id')}")
+
+
 def load_status() -> dict | None:
     try:
         return api_get("/pipeline/status")
@@ -54,6 +82,25 @@ if status is not None:
         st.sidebar.success(f"Qdrant has {points} point{'s' if points != 1 else ''}.")
     else:
         st.sidebar.warning("Search, Ask, and Extract stay off until a bid is embedded.")
+
+if page == "Pipeline" and st.query_params.get("row_id"):
+    detail_bid = st.query_params.get("bid_id") or ""
+    detail_step = st.query_params.get("step") or ""
+    detail_id = st.query_params.get("row_id") or ""
+    if st.button("Back"):
+        st.query_params.pop("row_id", None)
+        editor_key = f"open-{detail_bid}-{detail_step}-{st.query_params.get('file', '')}"
+        st.session_state.pop(editor_key, None)
+        st.rerun()
+    labels = {"sections": "Section", "tables": "Table", "chunks": "Chunk"}
+    st.caption(f"{labels.get(detail_step, 'Row')} · {detail_bid}")
+    try:
+        detail = api_get("/pipeline/rows", {"bid_id": detail_bid, "step": detail_step, "row_id": detail_id})
+    except Exception as exc:
+        st.error(str(exc))
+    else:
+        _show_full_row(detail_step, detail.get("row") or {})
+    st.stop()
 
 if page == "Pipeline":
     st.subheader("Bid pipeline")
@@ -150,9 +197,39 @@ if page == "Pipeline":
                 st.info(f"No {view.lower()} rows for {params['file']}.")
             else:
                 st.info(f"No {view.lower()} rows for {selected} yet. Run the step that fills this table.")
-        else:
-            st.caption(f"{len(rows)} row{'s' if len(rows) != 1 else ''} shown. Long text is truncated.")
+        elif view == "Files":
+            st.caption(f"{len(rows)} row{'s' if len(rows) != 1 else ''} shown.")
             st.dataframe(rows, use_container_width=True, hide_index=True)
+        else:
+            st.caption(f"{len(rows)} row{'s' if len(rows) != 1 else ''} shown. Check Open to view that row on its own page.")
+            frame = pd.DataFrame(rows)
+            frame.insert(0, "Open", False)
+            editor_key = f"open-{selected}-{step}-{params.get('file', '')}"
+            edited = st.data_editor(
+                frame,
+                column_config={
+                    "Open": st.column_config.CheckboxColumn("Open", default=False),
+                    "id": None,
+                },
+                disabled=[column for column in frame.columns if column != "Open"],
+                hide_index=True,
+                use_container_width=True,
+                key=editor_key,
+            )
+            chosen_rows = edited.loc[edited["Open"].fillna(False).astype(bool)]
+            if not chosen_rows.empty:
+                index = chosen_rows.index[0]
+                row_id = chosen_rows.iloc[0].get("id") or frame.loc[index, "id"]
+                if row_id and str(row_id) != "nan":
+                    st.session_state.pop(editor_key, None)
+                    st.query_params["bid_id"] = selected
+                    st.query_params["step"] = step
+                    st.query_params["row_id"] = str(row_id)
+                    if params.get("file"):
+                        st.query_params["file"] = params["file"]
+                    elif "file" in st.query_params:
+                        del st.query_params["file"]
+                    st.rerun()
 
 elif not retrieval_ready:
     st.subheader(page)

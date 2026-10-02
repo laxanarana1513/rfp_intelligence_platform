@@ -82,7 +82,7 @@ def step_rows(bid_folder: str, step: str, limit: int = 200, file: str | None = N
             LIMIT %(limit)s
         """,
         "sections": """
-            SELECT f.relative_path AS file, s.ordinal, array_to_string(s.heading_path, ' > ') AS heading,
+            SELECT s.id::text AS id, f.relative_path AS file, s.ordinal, array_to_string(s.heading_path, ' > ') AS heading,
                    s.level, s.page_start, s.page_end,
                    left(s.body_text, 500) AS body_text,
                    length(s.body_text) AS body_chars
@@ -95,7 +95,7 @@ def step_rows(bid_folder: str, step: str, limit: int = 200, file: str | None = N
             LIMIT %(limit)s
         """,
         "tables": """
-            SELECT f.relative_path AS file, s.ordinal AS section_ordinal,
+            SELECT t.id::text AS id, f.relative_path AS file, s.ordinal AS section_ordinal,
                    array_to_string(s.heading_path, ' > ') AS heading,
                    t.page_number, t.caption, left(t.markdown, 500) AS markdown
             FROM tables t
@@ -108,7 +108,7 @@ def step_rows(bid_folder: str, step: str, limit: int = 200, file: str | None = N
             LIMIT %(limit)s
         """,
         "chunks": """
-            SELECT f.relative_path AS file, c.ordinal, c.page_number, c.token_count, c.doc_type,
+            SELECT c.id::text AS id, f.relative_path AS file, c.ordinal, c.page_number, c.token_count, c.doc_type,
                    c.addendum_number, array_to_string(c.heading_path, ' > ') AS heading,
                    left(c.text, 500) AS text,
                    (c.embedded_at IS NOT NULL) AS embedded,
@@ -127,6 +127,45 @@ def step_rows(bid_folder: str, step: str, limit: int = 200, file: str | None = N
             {"bid": bid_folder, "limit": limit, "file": file or ""},
         ).fetchall()
     return [_jsonable(dict(row)) for row in rows]
+
+
+def step_row(bid_folder: str, step: str, row_id: str) -> dict | None:
+    """One section, table, or chunk with its text left intact."""
+    query = {
+        "sections": """
+            SELECT s.id::text AS id, f.relative_path AS file, s.ordinal,
+                   array_to_string(s.heading_path, ' > ') AS heading,
+                   s.level, s.page_start, s.page_end, s.body_text
+            FROM sections s
+            JOIN source_files f ON f.id = s.document_id
+            JOIN bids b ON b.id = f.bid_id
+            WHERE b.folder_name = %(bid)s AND s.id = %(row_id)s::uuid
+        """,
+        "tables": """
+            SELECT t.id::text AS id, f.relative_path AS file, s.ordinal AS section_ordinal,
+                   array_to_string(s.heading_path, ' > ') AS heading,
+                   t.page_number, t.caption, t.markdown, t.rows_json
+            FROM tables t
+            JOIN sections s ON s.id = t.section_id
+            JOIN source_files f ON f.id = s.document_id
+            JOIN bids b ON b.id = f.bid_id
+            WHERE b.folder_name = %(bid)s AND t.id = %(row_id)s::uuid
+        """,
+        "chunks": """
+            SELECT c.id::text AS id, f.relative_path AS file, c.ordinal, c.page_number,
+                   c.token_count, c.doc_type, c.addendum_number,
+                   array_to_string(c.heading_path, ' > ') AS heading,
+                   c.text, (c.embedded_at IS NOT NULL) AS embedded, c.qdrant_point_id
+            FROM chunks c
+            JOIN source_files f ON f.id = c.source_file_id
+            WHERE c.bid_folder = %(bid)s AND c.id = %(row_id)s::uuid
+        """,
+    }.get(step)
+    if query is None:
+        raise ValueError(f"unknown step: {step}")
+    with session_scope() as conn:
+        row = conn.execute(query, {"bid": bid_folder, "row_id": row_id}).fetchone()
+    return _jsonable(dict(row)) if row else None
 
 
 def _display_status(

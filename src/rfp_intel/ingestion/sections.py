@@ -40,6 +40,22 @@ class SectionDraft:
     tables: list[TableDraft] = field(default_factory=list)
 
 
+def _plain_table(rows: list) -> str:
+    """One line per row, cells separated by spaces. Empty when there is nothing to read."""
+    if not rows or not isinstance(rows[0], dict):
+        return ""
+    headers = [str(header).strip() for header in rows[0].keys()]
+    lines: list[str] = []
+    if any(headers):
+        lines.append(" ".join(header for header in headers if header))
+    for row in rows:
+        cells = [str(row.get(header, "")).strip() for header in rows[0].keys()]
+        line = " ".join(cell for cell in cells if cell)
+        if line:
+            lines.append(line)
+    return "\n".join(lines)
+
+
 def build_sections(items: list[RawItem]) -> list[SectionDraft]:
     """Group items under the heading that is in scope. Tables stay on that section."""
     sections: list[SectionDraft] = []
@@ -91,7 +107,13 @@ def build_sections(items: list[RawItem]) -> list[SectionDraft]:
             section.body_text = f"{section.body_text}\n\n{text}".strip()
             continue
         section = touch(item.page)
+        plain = _plain_table(item.table_rows or [])
+        if plain:
+            section.body_text = f"{section.body_text}\n\n{plain}".strip()
+            continue
         markdown = (item.table_markdown or item.text or "").strip()
+        if not markdown:
+            continue
         section.tables.append(
             TableDraft(
                 page_number=item.page,
@@ -100,8 +122,6 @@ def build_sections(items: list[RawItem]) -> list[SectionDraft]:
                 caption=item.caption,
             )
         )
-        if markdown:
-            section.body_text = f"{section.body_text}\n\n{markdown}".strip()
 
     if not sections:
         sections.append(SectionDraft(heading_path=["Document"], level=0, ordinal=0, page_start=None, page_end=None))
