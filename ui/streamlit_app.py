@@ -30,7 +30,7 @@ def api_get(path: str, params: dict | None = None):
     return _decode(httpx.get(f"{API}{path}", params=params, timeout=60))
 
 
-def api_post(path: str, payload: dict, timeout: float = 600):
+def api_post(path: str, payload: dict, timeout: float = 1800):
     return _decode(httpx.post(f"{API}{path}", json=payload, timeout=timeout))
 
 

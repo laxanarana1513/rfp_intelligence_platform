@@ -1,11 +1,13 @@
-"""Gemini chat model with structured output and exponential backoff."""
+"""OpenRouter chat model with structured output and exponential backoff."""
 
 from __future__ import annotations
 
-import os
+import json
+import re
 from contextvars import ContextVar
 from typing import TypeVar
 
+import requests
 from pydantic import BaseModel
 
 from rfp_intel.config import get_settings
@@ -14,7 +16,8 @@ from rfp_intel.resilience import NonRetryableError, retry_with_backoff
 T = TypeVar("T", bound=BaseModel)
 
 _llm_override: ContextVar = ContextVar("llm_override", default=None)
-_model = None
+
+OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 def set_llm_override(fn):
@@ -34,76 +37,166 @@ def complete_structured(schema: type[T], system: str, user: str) -> tuple[T, int
         return parsed, 0
 
     settings = get_settings()
-    if not settings.google_api_key:
-        raise NonRetryableError("GOOGLE_API_KEY is not set")
-    os.environ["GOOGLE_API_KEY"] = settings.google_api_key
+    if not settings.openrouter_api_key:
+        raise NonRetryableError("OPENROUTER_API_KEY is not set")
 
     def call():
-        from langchain_core.messages import HumanMessage, SystemMessage
+        return _openrouter(
+            schema,
+            [
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
 
-        llm = _chat_model()
-        structured = llm.with_structured_output(schema, include_raw=True)
-        return structured.invoke([SystemMessage(content=system), HumanMessage(content=user)])
-
-    result = retry_with_backoff(
+    parsed, tokens, raw_text = retry_with_backoff(
         call,
-        max_attempts=settings.io_max_attempts,
+        max_attempts=min(settings.io_max_attempts, 3),
         base=settings.backoff_base_seconds,
         cap=settings.backoff_cap_seconds,
     )
-    parsed, tokens = _unpack(result)
     if parsed is None:
-        parsed, repair_tokens = _repair(schema, system, user, result)
+        parsed, repair_tokens = _repair(schema, system, user, raw_text)
         tokens += repair_tokens
     if not isinstance(parsed, schema):
         parsed = schema.model_validate(parsed)
     return parsed, tokens
 
 
-def _chat_model():
-    global _model
-    if _model is not None:
-        return _model
-    from langchain.chat_models import init_chat_model
-
+def _openrouter(schema: type[BaseModel], messages: list[dict]) -> tuple[BaseModel | None, int, str]:
     settings = get_settings()
-    kwargs = {"api_key": settings.google_api_key}
-    if settings.llm_thinking_level:
-        kwargs["thinking_level"] = settings.llm_thinking_level
+    payload: dict = {
+        "model": settings.llm_model,
+        "messages": messages,
+    }
+    if settings.llm_reasoning_enabled:
+        payload["reasoning"] = {"enabled": True}
+    payload["response_format"] = {
+        "type": "json_schema",
+        "json_schema": {
+            "name": schema.__name__,
+            "strict": False,
+            "schema": schema.model_json_schema(),
+        },
+    }
     try:
-        _model = init_chat_model(settings.llm_model, model_provider="google_genai", **kwargs)
-    except TypeError:
-        kwargs.pop("thinking_level", None)
-        _model = init_chat_model(settings.llm_model, model_provider="google_genai", **kwargs)
-    return _model
+        body = _post(payload)
+    except RuntimeError as exc:
+        if getattr(exc, "status_code", None) != 400:
+            raise
+        payload.pop("response_format", None)
+        body = _post(payload)
+    message = body["choices"][0]["message"]
+    text = _message_text(message)
+    usage = body.get("usage") or {}
+    return _parse_model(schema, text), int(usage.get("total_tokens") or 0), text
 
 
-def _unpack(result) -> tuple[object | None, int]:
-    if isinstance(result, dict):
-        raw = result.get("raw")
-        usage = getattr(raw, "usage_metadata", None) or {}
-        total = usage.get("total_tokens") if isinstance(usage, dict) else getattr(usage, "total_tokens", 0)
-        return result.get("parsed"), int(total or 0)
-    return result, 0
-
-
-def _repair(schema, system: str, user: str, previous) -> tuple[object, int]:
-    from langchain_core.messages import HumanMessage, SystemMessage
-
+def _post(payload: dict) -> dict:
     settings = get_settings()
-    raw_text = ""
-    if isinstance(previous, dict) and previous.get("raw") is not None:
-        raw_text = str(getattr(previous["raw"], "content", previous["raw"]))[:4000]
+    try:
+        response = requests.post(
+            OPENROUTER_URL,
+            headers={
+                "Authorization": f"Bearer {settings.openrouter_api_key}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=settings.llm_request_timeout_seconds,
+        )
+    except requests.Timeout as exc:
+        error = RuntimeError("OpenRouter request timed out")
+        error.status_code = 504
+        raise error from exc
+    if response.status_code >= 400:
+        if response.status_code in {401, 403}:
+            raise NonRetryableError(f"OpenRouter rejected the API key ({response.status_code})")
+        error = RuntimeError(response.text[:500])
+        error.status_code = response.status_code
+        raise error
+    return response.json()
+
+
+def _message_text(message: dict) -> str:
+    content = message.get("content")
+    text = _content_to_text(content)
+    if text.strip():
+        return text
+    details = message.get("reasoning_details") or message.get("reasoning")
+    if isinstance(details, list):
+        parts = []
+        for item in details:
+            if isinstance(item, dict):
+                parts.append(str(item.get("text") or item.get("content") or ""))
+            else:
+                parts.append(str(item))
+        text = "".join(parts)
+    elif isinstance(details, str):
+        text = details
+    else:
+        text = ""
+    return text.strip()
+
+
+def _content_to_text(content) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict):
+                parts.append(str(part.get("text") or part.get("content") or ""))
+        return "".join(parts)
+    return ""
+
+
+def _parse_model(schema: type[T], text: str) -> T | None:
+    cleaned = text.strip()
+    if cleaned.startswith("```"):
+        cleaned = cleaned.strip("`")
+        if cleaned.lower().startswith("json"):
+            cleaned = cleaned[4:].strip()
+    for candidate in (cleaned, _json_object(cleaned)):
+        if not candidate:
+            continue
+        try:
+            return schema.model_validate_json(candidate)
+        except Exception:
+            try:
+                return schema.model_validate(json.loads(candidate))
+            except Exception:
+                continue
+    return None
+
+
+def _json_object(text: str) -> str:
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        return text[start : end + 1]
+    return ""
+
+
+def _repair(schema, system: str, user: str, raw_text: str) -> tuple[object, int]:
+    settings = get_settings()
 
     def call():
-        llm = _chat_model()
-        structured = llm.with_structured_output(schema)
-        return structured.invoke(
+        parsed, _tokens, _text = _openrouter(
+            schema,
             [
-                SystemMessage(content=system + " Return only the structured object. Do not add fields."),
-                HumanMessage(content=f"{user}\n\nThe previous response was invalid:\n{raw_text}"),
-            ]
+                {
+                    "role": "system",
+                    "content": system
+                    + " Return only valid JSON for the schema. Use chunk_id exactly as given in the chunks list.",
+                },
+                {"role": "user", "content": f"{user}\n\nThe previous response was invalid:\n{raw_text[:4000]}"},
+            ],
         )
+        if parsed is None:
+            raise NonRetryableError("model returned invalid structured output")
+        return parsed
 
     try:
         parsed = retry_with_backoff(
@@ -114,6 +207,4 @@ def _repair(schema, system: str, user: str, previous) -> tuple[object, int]:
         )
     except Exception as exc:
         raise NonRetryableError(f"model returned invalid structured output: {exc}") from exc
-    if parsed is None:
-        raise NonRetryableError("model returned invalid structured output")
     return parsed, 0

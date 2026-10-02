@@ -87,11 +87,17 @@ def extract_all_groups(bid_folder: str) -> list[dict]:
                 else:
                     trace_mod.reset_trace(token)
 
+    settings = get_settings()
+    workers = max(1, min(settings.extract_group_concurrency, len(FIELD_GROUPS)))
     candidates: list[dict] = []
-    with ThreadPoolExecutor(max_workers=len(FIELD_GROUPS)) as pool:
-        futures = [pool.submit(run_group, name, fields) for name, fields in FIELD_GROUPS.items()]
-        for future in as_completed(futures):
-            candidates.extend(future.result())
+    if workers == 1:
+        for name, fields in FIELD_GROUPS.items():
+            candidates.extend(run_group(name, fields))
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [pool.submit(run_group, name, fields) for name, fields in FIELD_GROUPS.items()]
+            for future in as_completed(futures):
+                candidates.extend(future.result())
     trace_step(
         "extraction",
         {"bid_id": bid_folder, "groups": list(FIELD_GROUPS)},
@@ -103,7 +109,7 @@ def extract_all_groups(bid_folder: str) -> list[dict]:
 
 def extract_group(group_name: str, fields: list[str], bid_folder: str) -> list[dict]:
     started = time.perf_counter()
-    hits = search_hits(" ".join(fields), bid_id=bid_folder, top_k=8)
+    hits = search_hits(f"{' '.join(fields)} {bid_folder}", bid_id=bid_folder, top_k=8)
     grouped: dict[str, list[SearchHit]] = defaultdict(list)
     for hit in hits:
         grouped[hit.section_id or hit.section_heading or "document"].append(hit)
@@ -111,14 +117,17 @@ def extract_group(group_name: str, fields: list[str], bid_folder: str) -> list[d
     found: list[dict] = []
     if sections:
         workers = max(1, min(get_settings().extract_section_concurrency, len(sections)))
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            # One context per task. A single Context cannot be entered by two threads.
-            futures = [
-                pool.submit(copy_context().run, extract_section, fields, section_hits)
-                for section_hits in sections
-            ]
-            for future in as_completed(futures):
-                found.extend(future.result())
+        if workers == 1:
+            for section_hits in sections:
+                found.extend(extract_section(fields, section_hits))
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = [
+                    pool.submit(copy_context().run, extract_section, fields, section_hits)
+                    for section_hits in sections
+                ]
+                for future in as_completed(futures):
+                    found.extend(future.result())
     trace_step(
         group_name,
         {"fields": fields, "hit_count": len(hits), "sections": len(sections)},
@@ -163,7 +172,7 @@ def extract_section(fields: list[str], hits: list[SearchHit]) -> list[dict]:
     for item in parsed.fields:
         if item.field_name not in fields or not item.value or not str(item.value).strip():
             continue
-        hit = by_id.get(item.chunk_id or "")
+        hit = by_id.get(item.chunk_id or "") or _hit_for_value(hits, str(item.value).strip())
         if hit is None:
             continue
         candidates.append(
@@ -252,3 +261,17 @@ def answer_from_hits(question: str, hits: list[SearchHit]) -> tuple[str, list[di
 
 def _ms(started: float) -> int:
     return int((time.perf_counter() - started) * 1000)
+
+
+def _hit_for_value(hits: list[SearchHit], value: str):
+    """When the model returns a wrong chunk_id, keep the value if it appears in a retrieved chunk."""
+    import re
+
+    needle = " ".join(re.sub(r"[^a-z0-9]+", " ", value.lower()).split())
+    if not needle:
+        return None
+    for hit in hits:
+        hay = " ".join(re.sub(r"[^a-z0-9]+", " ", hit.text.lower()).split())
+        if needle in hay or (len(needle) > 12 and needle[:12] in hay):
+            return hit
+    return None
