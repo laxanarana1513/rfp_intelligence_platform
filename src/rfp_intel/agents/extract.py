@@ -16,6 +16,28 @@ from rfp_intel.schemas import SearchHit
 
 _search_override: ContextVar = ContextVar("search_override", default=None)
 
+FIELD_QUERY_HINTS = {
+    "Bid Number": "solicitation number reference number sourcing bid number RFP",
+    "Title": "title solicitation name request for proposal",
+    "company_name": "issuing organization district agency company vendor firm name",
+    "contact_info": "contact information buyer procurement email phone",
+    "Due Date": "closing date due date submission deadline new due date",
+    "Bid Submission Type": "submission type submit proposal online sealed envelope manual submission",
+    "Pre Bid Meeting": "prebid conference pre proposal meeting pre bid meeting",
+    "Delivery Date": "delivery date delivery schedule delivery timeline",
+    "Installation": "installation install implementation setup",
+    "Term of Bid": "term contract term agreement period renewal",
+    "Bid Bond Requirement": "bid bond insurance liability bond requirement",
+    "Payment Terms": "payment terms invoice net payment",
+    "Any Additional Documentation Required": "additional documentation required attachments literature credit application forms",
+    "MFG for Registration": "manufacturer registration MFG registration",
+    "Contract or Cooperative to use": "contract cooperative piggyback purchasing cooperative",
+    "Model_no": "model number model_no model",
+    "Part_no": "part number part_no SKU item number",
+    "Product": "product devices laptops desktops tablets monitors",
+    "Product Specification": "product specification scope specifications requirements devices laptops desktops tablets monitors",
+}
+
 EXTRACT_SYSTEM = """You extract structured bid fields from the evidence chunks of a single section.
 Rules:
 - Use only the chunks provided. Do not use outside knowledge.
@@ -109,28 +131,18 @@ def extract_all_groups(bid_folder: str) -> list[dict]:
 
 def extract_group(group_name: str, fields: list[str], bid_folder: str) -> list[dict]:
     started = time.perf_counter()
-    hits = search_hits(f"{' '.join(fields)} {bid_folder}", bid_id=bid_folder, top_k=8)
-    grouped: dict[str, list[SearchHit]] = defaultdict(list)
-    for hit in hits:
-        grouped[hit.section_id or hit.section_heading or "document"].append(hit)
-    sections = sorted(grouped.values(), key=lambda group: max(hit.score for hit in group), reverse=True)[:4]
-    found: list[dict] = []
-    if sections:
-        workers = max(1, min(get_settings().extract_section_concurrency, len(sections)))
-        if workers == 1:
-            for section_hits in sections:
-                found.extend(extract_section(fields, section_hits))
-        else:
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                futures = [
-                    pool.submit(copy_context().run, extract_section, fields, section_hits)
-                    for section_hits in sections
-                ]
-                for future in as_completed(futures):
-                    found.extend(future.result())
+    hits = _dedupe_hits(search_hits(f"{' '.join(fields)} {bid_folder}", bid_id=bid_folder, top_k=8))
+    found = _extract_from_hits(fields, hits, section_limit=3)
+    missing = [field for field in fields if not any(candidate["field_name"] == field for candidate in found)]
+    if missing:
+        fallback_hits = []
+        for field in missing:
+            query = f"{field} {FIELD_QUERY_HINTS.get(field, '')} {bid_folder}"
+            fallback_hits.extend(search_hits(query, bid_id=bid_folder, top_k=5))
+        found.extend(_extract_from_hits(missing, _dedupe_hits(fallback_hits), section_limit=4))
     trace_step(
         group_name,
-        {"fields": fields, "hit_count": len(hits), "sections": len(sections)},
+        {"fields": fields, "hit_count": len(hits), "fallback_fields": missing},
         {"candidate_count": len(found)},
         latency_ms=_ms(started),
     )
@@ -141,13 +153,41 @@ def extract_fields_from_query(fields: list[str], query: str, bid_folder: str) ->
     hits = search_hits(query, bid_id=bid_folder, top_k=6)
     if not hits:
         return []
+    return _extract_from_hits(fields, hits, section_limit=3)
+
+
+def _extract_from_hits(fields: list[str], hits: list[SearchHit], *, section_limit: int) -> list[dict]:
     grouped: dict[str, list[SearchHit]] = defaultdict(list)
     for hit in hits:
         grouped[hit.section_id or hit.section_heading or "document"].append(hit)
+    sections = sorted(grouped.values(), key=lambda group: max(hit.score for hit in group), reverse=True)[:section_limit]
     found: list[dict] = []
-    for section_hits in list(grouped.values())[:3]:
-        found.extend(extract_section(fields, section_hits))
+    if not sections:
+        return found
+    workers = max(1, min(get_settings().extract_section_concurrency, len(sections)))
+    if workers == 1:
+        for section_hits in sections:
+            found.extend(extract_section(fields, section_hits))
+    else:
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            futures = [
+                pool.submit(copy_context().run, extract_section, fields, section_hits)
+                for section_hits in sections
+            ]
+            for future in as_completed(futures):
+                found.extend(future.result())
     return found
+
+
+def _dedupe_hits(hits: list[SearchHit]) -> list[SearchHit]:
+    seen = set()
+    unique = []
+    for hit in hits:
+        if hit.chunk_id in seen:
+            continue
+        seen.add(hit.chunk_id)
+        unique.append(hit)
+    return unique
 
 
 def extract_section(fields: list[str], hits: list[SearchHit]) -> list[dict]:

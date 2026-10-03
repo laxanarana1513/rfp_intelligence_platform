@@ -35,8 +35,8 @@ class Settings(BaseSettings):
     io_max_attempts: int = 5
     validator_max_retries: int = 2
     ingestion_max_attempts: int = 3
-    extract_section_concurrency: int = int(os.getenv("EXTRACT_SECTION_CONCURRENCY", "1"))
-    extract_group_concurrency: int = int(os.getenv("EXTRACT_GROUP_CONCURRENCY", "1"))
+    extract_section_concurrency: int = int(os.getenv("EXTRACT_SECTION_CONCURRENCY", "2"))
+    extract_group_concurrency: int = int(os.getenv("EXTRACT_GROUP_CONCURRENCY", "2"))
     log_level: str = "INFO"
 
 
