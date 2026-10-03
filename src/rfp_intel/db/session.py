@@ -17,6 +17,8 @@ Conn = psycopg.Connection[dict[str, Any]]
 def database_dsn() -> str:
     """libpq URL. A ``postgresql+psycopg://`` URL is accepted and the driver suffix is dropped."""
     url = get_settings().database_url.strip()
+    if not url:
+        raise RuntimeError("DATABASE_URL is empty. Set it in .env or the environment before connecting to Postgres.")
     if "://" in url:
         scheme, rest = url.split("://", 1)
         scheme = scheme.split("+", 1)[0]

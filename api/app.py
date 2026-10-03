@@ -18,6 +18,7 @@ from rfp_intel.config import get_settings
 from rfp_intel.db.migrate import upgrade
 from rfp_intel.ingestion.jobs import list_bids, list_jobs
 from rfp_intel.logging_setup import get_logger, setup_logging
+from rfp_intel.search.metrics import recall_at_k, reciprocal_rank
 from rfp_intel.service import (
     ServiceError,
     ask_question,
@@ -42,6 +43,15 @@ class IndexRequest(BaseModel):
 class AskRequest(BaseModel):
     question: str
     bid_id: str | None = None
+
+
+class SearchEvaluationRequest(BaseModel):
+    query: str = Field(min_length=1)
+    passage: str = Field(min_length=1, description="Expected relevant text contained in a search hit")
+    bid_id: str | None = None
+    file_contains: str | None = None
+    doc_type: str | None = None
+    addendum_number: int | None = None
 
 
 class ExtractRequest(BaseModel):
@@ -131,6 +141,31 @@ def create_app() -> FastAPI:
         except ServiceError as exc:
             raise HTTPException(exc.status_code, str(exc)) from exc
         return {"query": q, "hits": [hit.model_dump() for hit in hits]}
+
+    @app.post("/search/evaluate")
+    def evaluate_search(body: SearchEvaluationRequest):
+        question = {
+            "passage": body.passage,
+            "file_contains": body.file_contains,
+            "bid_id": body.bid_id,
+        }
+        results = {}
+        for mode in ("hybrid", "hybrid_rerank"):
+            search_result = search(
+                q=body.query,
+                bid_id=body.bid_id,
+                doc_type=body.doc_type,
+                addendum_number=body.addendum_number,
+                top_k=5,
+                mode=mode,
+            )
+            hits = search_result["hits"]
+            results[mode] = {
+                "recall@5": recall_at_k(hits, question, 5),
+                "mrr": reciprocal_rank(hits, question),
+                "hits": hits,
+            }
+        return {"query": body.query, "results": results}
 
     @app.post("/ask")
     def ask(body: AskRequest):
