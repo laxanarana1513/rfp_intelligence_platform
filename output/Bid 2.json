@@ -1,0 +1,207 @@
+{
+  "bid_id": "Bid 2",
+  "fields": {
+    "Bid Number": {
+      "value": "BPM044557",
+      "sources": [
+        {
+          "file": "Dell Laptops w_Extended Warranty - Bid Information - {3} _ BidNet Direct.html",
+          "page": null,
+          "section": "BPM044557 - Dell Laptops w/Extended Warranty > Contact Information"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Title": {
+      "value": "Dell Laptops w/Extended Warranty",
+      "sources": [
+        {
+          "file": "Dell Laptops w_Extended Warranty - Bid Information - {3} _ BidNet Direct.html",
+          "page": null,
+          "section": "BPM044557 - Dell Laptops w/Extended Warranty > Contact Information"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "company_name": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "contact_info": {
+      "value": "Tamaira Hawkins 410-260-7533 Thawkins@treasurer.state.md.us",
+      "sources": [
+        {
+          "file": "Dell Laptops w_Extended Warranty - Bid Information - {3} _ BidNet Direct.html",
+          "page": null,
+          "section": "BPM044557 - Dell Laptops w/Extended Warranty > Contact Information"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Due Date": {
+      "value": "06/10/2024",
+      "sources": [
+        {
+          "file": "PORFP_-_Dell_Laptop_Final.pdf",
+          "page": 1,
+          "section": "Purchase Order Request for Proposals (PORFP) Hardware Master Contract"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Bid Submission Type": {
+      "value": "Fixed Price",
+      "sources": [
+        {
+          "file": "PORFP_-_Dell_Laptop_Final.pdf",
+          "page": 1,
+          "section": "Purchase Order Request for Proposals (PORFP) Hardware Master Contract"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Pre Bid Meeting": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Delivery Date": {
+      "value": "06/10/2024",
+      "sources": [
+        {
+          "file": "PORFP_-_Dell_Laptop_Final.pdf",
+          "page": 3,
+          "section": "Purchase Order Request for Proposals (PORFP) Hardware Master Contract"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Installation": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Term of Bid": {
+      "value": "pricing is valid for thirty days from the date of this Quote.",
+      "sources": [
+        {
+          "file": "Dell_Laptop_Specs.pdf",
+          "page": 3,
+          "section": "Terms of Sale"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Bid Bond Requirement": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Payment Terms": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Any Additional Documentation Required": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "MFG for Registration": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Contract or Cooperative to use": {
+      "value": "This Quote will, if Customer issues a purchase order for the quoted items that is accepted by Supplier, constitute a contract between the entity issuing this Quote (Supplier) and the entity to whom this Quote was issued (Customer).",
+      "sources": [
+        {
+          "file": "Dell_Laptop_Specs.pdf",
+          "page": 3,
+          "section": "Terms of Sale"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Model_no": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Part_no": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Product": {
+      "value": "Dell Latitude 5550 XCTO Base",
+      "sources": [
+        {
+          "file": "Dell_Laptop_Specs.pdf",
+          "page": 1,
+          "section": "SKU Description"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Product Specification": {
+      "value": "Intel Core Ultra 5 125U processor (12 MB cache, 12 cores, 14 threads, up to 4.3 GHz Turbo); Windows 11 Pro; 16 GB DDR5 5600 MT/s; 256 GB M.2 2230 TLC Gen 4 PCIe NVMe SSD; 15.6 FHD 1920x1080 IPS Non-Touch AG 250 nit 45% NTSC FHD Cam; English US backlit AI hotkey keyboard with numeric keypad; Intel AX211 WLAN Driver Intel Wi-Fi 6E AX211 2x2 802.11ax Bluetooth 5.3 wireless card; 3-cell 54 Wh ExpressCharge Capable battery; 65W AC adapter USB Type-C EcoDesign",
+      "sources": [
+        {
+          "file": "Dell_Laptop_Specs.pdf",
+          "page": 1,
+          "section": "SKU Description"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Bid Summary": {
+      "value": "This bid is a Purchase Order Request for Proposals (PORFP) for Dell laptops with extended warranty under project BPM044557, with proposals due by 06/10/2024. The solicitation requires 30 Dell Latitude 5550 laptops and 30 Dell Thunderbolt 4 Dock WD22TB4 units, all specified as Microsoft Copilot ready. Awards are restricted to master contractors registered under the Desktop, Laptop and Tablet 2015 Master Contract participating in a Small Business Reserve (SBR) procurement for Minority Business Enterprise (MBE) goals. Submissions must be delivered electronically through the State's eMaryland Marketplace Advantage (eMMA) system, as bids are not accepted via email, fax, mail, or hand delivery.",
+      "sources": [
+        {
+          "file": "Dell Laptops w_Extended Warranty - Bid Information - {3} _ BidNet Direct.html",
+          "page": null,
+          "section": "BPM044557 - Dell Laptops w/Extended Warranty > Contact Information"
+        },
+        {
+          "file": "PORFP_-_Dell_Laptop_Final.pdf",
+          "page": 1,
+          "section": "Purchase Order Request for Proposals (PORFP) Hardware Master Contract"
+        },
+        {
+          "file": "PORFP_-_Dell_Laptop_Final.pdf",
+          "page": 3,
+          "section": "Purchase Order Request for Proposals (PORFP) Hardware Master Contract"
+        }
+      ],
+      "confidence": 0.7,
+      "notes": "Generated from cited chunks"
+    }
+  },
+  "addendum_changes": [],
+  "validation": {
+    "passed": 11,
+    "failed": 0,
+    "not_found": 9
+  }
+}
