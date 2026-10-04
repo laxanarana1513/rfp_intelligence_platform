@@ -9,7 +9,7 @@ from pydantic import ValidationError
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "eval"))
 
-from rfp_intel.agents.extract import reset_search_override, set_search_override
+from rfp_intel.agents.extract import extract_group, reset_search_override, set_search_override
 from rfp_intel.agents.fields import ALL_FIELDS, SPECIALIST_FIELDS
 from rfp_intel.agents.graph import build_extract_graph
 from rfp_intel.agents.llm import reset_llm_override, set_llm_override
@@ -322,6 +322,51 @@ def test_extract_graph_cites_every_value(monkeypatch):
     example = ROOT / "examples" / "traces" / "example_extract_trace.json"
     example.parent.mkdir(parents=True, exist_ok=True)
     example.write_text(__import__("json").dumps(sink, indent=2), encoding="utf-8")
+
+
+def test_extract_group_uses_field_specific_retrieval_when_broad_query_misses():
+    def search(query, bid_id=None, top_k=8, doc_type=None):
+        if query.startswith("Bid Number "):
+            return [
+                SearchHit(
+                    chunk_id="bid-number",
+                    text="Basic Information Solicitation Number JA-207652 Title Student and Staff Computing Devices",
+                    score=0.95,
+                    file_name="bid.html",
+                    page_number=1,
+                    section_heading="Basic Information",
+                    section_id="basic",
+                    bid_id=bid_id or "Bid 1",
+                    doc_type=doc_type or "bid_page",
+                    addendum_number=0,
+                )
+            ]
+        return []
+
+    def llm(schema, system, user):
+        if schema is SectionExtraction and "JA-207652" in user:
+            return SectionExtraction(
+                fields=[
+                    ExtractedItem(
+                        field_name="Bid Number",
+                        value="JA-207652",
+                        confidence=0.9,
+                        notes="",
+                        chunk_id="bid-number",
+                    )
+                ]
+            )
+        return SectionExtraction(fields=[])
+
+    llm_token = set_llm_override(llm)
+    search_token = set_search_override(search)
+    try:
+        candidates = extract_group("identity", ["Bid Number", "Title"], "Bid 1")
+    finally:
+        reset_llm_override(llm_token)
+        reset_search_override(search_token)
+
+    assert any(candidate["field_name"] == "Bid Number" and candidate["value"] == "JA-207652" for candidate in candidates)
 
 
 def test_recall_and_mrr():
