@@ -376,6 +376,9 @@ This section would demo atleast 10 questions & the detailed log including agent,
 
 Ask Mode: A full sample user question agent trace is provided in `examples/traces/full_trace_ask_mode.json`
 
+### Demo Video
+https://www.loom.com/share/b20c3bd895904d36b5bd538dfa4132f4
+
 ## Assumptions and limitations
 
 - A bid is one immediate subfolder of `data/` containing `.pdf`, `.html`, or `.htm` files. Document type comes from the file name (`addendum`, `affidavit`, `specs`, HTML bid page, otherwise RFP).
