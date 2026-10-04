@@ -332,21 +332,3 @@ elif page == "Extract":
             file_name=f"{record.get('bid_id')}.json",
             mime="application/json",
         )
-
-    st.divider()
-    st.markdown("**Compare two stored extractions**")
-    left_id = st.text_input("First bid", value="Bid 1", key="left_bid")
-    right_id = st.text_input("Second bid", value="Bid 2", key="right_bid")
-    if st.button("Load comparison"):
-        columns = st.columns(2)
-        for column, name in zip(columns, (left_id.strip(), right_id.strip())):
-            with column:
-                st.markdown(f"**{name}**")
-                try:
-                    loaded = api_get("/extractions", {"bid_id": name})
-                except Exception as exc:
-                    st.warning(str(exc))
-                    continue
-                for field_name, field in (loaded.get("fields") or {}).items():
-                    st.markdown(f"*{field_name}*")
-                    st.write(field.get("value") or field.get("notes"))
