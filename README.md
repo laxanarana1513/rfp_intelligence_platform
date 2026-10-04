@@ -376,6 +376,10 @@ This section would demo atleast 10 questions & the detailed log including agent,
 
 Ask Mode: A full sample user question agent trace is provided in `examples/traces/full_trace_ask_mode.json`
 
+JSON Output files for complete extraction process for each bid folder is present in below directories:
+1. Bid 1: `output/Bid 1.json`
+2. Bid 2: `output/Bid 2.json`
+
 ### Demo Video
 https://www.loom.com/share/b20c3bd895904d36b5bd538dfa4132f4
 

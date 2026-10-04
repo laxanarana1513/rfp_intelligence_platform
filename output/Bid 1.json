@@ -1,0 +1,149 @@
+{
+  "bid_id": "Bid 1",
+  "fields": {
+    "Bid Number": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Title": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "company_name": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "contact_info": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Due Date": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Bid Submission Type": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Pre Bid Meeting": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Delivery Date": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Installation": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Term of Bid": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Bid Bond Requirement": {
+      "value": "Must comply with any insurance, bid bond, or liability requirements of the District as noted elsewhere in this solicitation document",
+      "sources": [
+        {
+          "file": "JA-207652 Student and Staff Computing Devices FINAL.pdf",
+          "page": 6,
+          "section": "PROPOSAL SPECIFIC QUESTIONS"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "Payment Terms": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Any Additional Documentation Required": {
+      "value": "Must include pertinent literature/documentation for the proposed products/goods or services; if credit application or similar documentation is required to conduct business with Dallas ISD after awarding of any Contract, those documents must be submitted at the time of Offer submission; must register with the iSupplier portal (process takes up to a week)",
+      "sources": [
+        {
+          "file": "JA-207652 Student and Staff Computing Devices FINAL.pdf",
+          "page": 6,
+          "section": "PROPOSAL SPECIFIC QUESTIONS"
+        }
+      ],
+      "confidence": 0.0,
+      "notes": ""
+    },
+    "MFG for Registration": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Contract or Cooperative to use": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Model_no": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Part_no": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Product": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Product Specification": {
+      "value": null,
+      "sources": [],
+      "confidence": 0.0,
+      "notes": "Not found in documents"
+    },
+    "Bid Summary": {
+      "value": "The Offeror must comply with insurance, bid bond, and liability requirements set by Dallas ISD as noted in the proposal-specific questions. Responses may be submitted online via the iSupplier portal after registering early, or manually as a sealed envelope delivered to the Procurement Services Department by the stated deadline. Manual submissions require one original hard copy, and no fax or email submissions are accepted, with only one format needed. Vendors must provide company information including firm name, Federal Tax ID number, address, telephone number, and counts of both non-clerical and clerical personnel. Additionally, pertinent product literature or documentation and any required credit application forms must be included at the time of offer submission.",
+      "sources": [
+        {
+          "file": "JA-207652 Student and Staff Computing Devices FINAL.pdf",
+          "page": 6,
+          "section": "PROPOSAL SPECIFIC QUESTIONS"
+        }
+      ],
+      "confidence": 0.7,
+      "notes": "Generated from cited chunks"
+    }
+  },
+  "addendum_changes": [],
+  "validation": {
+    "passed": 3,
+    "failed": 0,
+    "not_found": 17
+  }
+}
