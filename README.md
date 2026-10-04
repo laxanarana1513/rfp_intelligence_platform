@@ -387,6 +387,6 @@ https://www.loom.com/share/b20c3bd895904d36b5bd538dfa4132f4
 
 - A bid is one immediate subfolder of `data/` containing `.pdf`, `.html`, or `.htm` files. Document type comes from the file name (`addendum`, `affidavit`, `specs`, HTML bid page, otherwise RFP).
 - The first run downloads Docling layout models and the two BAAI models.
-- Ask and Extract call OpenRouter. The free Qwen model is rate-limited, so a full extraction can pause or retry when the daily cap is hit.
+- Ask and Extract call OpenRouter. The free nvidia/nemotron-3.5-lightning:free model is rate-limited, so a full extraction can pause or retry when the daily cap is hit. FYI for Bid 1, full extraction process was not carried out due to LLM model rate-limit.
 - OCR uses Docling's OCR pipeline. A page that is still empty after OCR is logged and skipped; the rest of the folder is indexed.
 - Go/no-go scoring and a CI eval job are not included.
